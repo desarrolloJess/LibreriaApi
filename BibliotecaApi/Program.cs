@@ -38,7 +38,7 @@ app.MapPost("/api/autores/nuevo", async ([FromServices] LibrosContext dbContext,
 });
 
 //Endpoint MODIFICAR
-app.MapPut("/api/autores/mod/{id}", async ([FromServices] LibrosContext dbContext, [FromBody] Autor autor, [FromRoute] int id) =>
+app.MapPut("/api/autores/modificar/{id}", async ([FromServices] LibrosContext dbContext, [FromBody] Autor autor, [FromRoute] int id) =>
 {
     //Buscamos la tarea actual con base al id
     var autorActual = await dbContext.Autores.FindAsync(id);
@@ -55,7 +55,7 @@ app.MapPut("/api/autores/mod/{id}", async ([FromServices] LibrosContext dbContex
 });
 
 //Endpoint ELIMINAR
-app.MapDelete("/api/autores/elim/{id}", async ([FromServices] LibrosContext dbContext, [FromRoute] int id) =>
+app.MapDelete("/api/autores/eliminar/{id}", async ([FromServices] LibrosContext dbContext, [FromRoute] int id) =>
 {
     //Buscamos la tarea actual con base al id
     var autorActual = await dbContext.Autores.FindAsync(id);
@@ -113,11 +113,21 @@ app.MapPost("/api/libros/nuevo", async ([FromServices] LibrosContext dbContext, 
 
     foreach (var autorId in autoresIdsList)
     {
-        nuevoLibro.LibrosAutores.Add(new LibroAutor
+        var autorActual = await dbContext.Autores.FindAsync(autorId);
+        if (autorActual == null)
         {
-            LibroId = nuevoLibro.LibroId,
-            AutorId = autorId
-        });
+            return Results.Ok($"El autor: {autorActual}, no existe");
+        }
+        else 
+        {
+            nuevoLibro.LibrosAutores.Add(new LibroAutor
+            {
+                LibroId = nuevoLibro.LibroId,
+                AutorId = autorId
+            });
+        }
+
+        
     }
     await dbContext.AddAsync(nuevoLibro);
     await dbContext.SaveChangesAsync();
@@ -159,6 +169,117 @@ app.MapPut("/api/libros/mod/{id}", async ([FromServices] LibrosContext dbContext
     return Results.NotFound();
 });
 
+// lenguaje liq (TAREA) -------------------------------------------------------------------------------------------------------
+
+// 1. Listado de todos los libros incluyendo en nombre de la editorial y ordenados por titulo en orden descendente.
+app.MapGet("/api/listadoLibrosCompleto", async ([FromServices] LibrosContext dbContext) =>
+{
+    var libros = await dbContext.Libros
+        .Include(l => l.Editorial)  
+        .OrderByDescending(l => l.Titulo) 
+        .Select(l => new
+        {
+            TituloLibro = l.Titulo,
+            NumeroPaginas = l.NumPaginas,
+            FechaPublicacion = l.FechaPublicacion,
+            Edicion = l.Edicion,
+            Precio = l.Precio,
+            NombreEditorial = l.Editorial.Nombre  
+        })
+        .ToListAsync();
+
+    return Results.Ok(libros);
+});
+
+// 2. Listado de todos los libros incluyendo los datos de cada uno de su(s} autor(es).
+app.MapGet("/api/listadoLibrosConAutores", async ([FromServices] LibrosContext dbContext) =>
+{
+    var librosConAutores = await dbContext.Libros
+        .Include(l => l.Editorial)  
+        .Include(l => l.LibrosAutores)  
+        .ThenInclude(la => la.Autor)  
+        .OrderByDescending(l => l.Titulo) 
+        .Select(l => new
+        {
+            TituloLibro = l.Titulo,
+            NombreEditorial = l.Editorial.Nombre,
+            NumeroPaginas = l.NumPaginas,
+            FechaPublicacion = l.FechaPublicacion,
+            Edicion = l.Edicion,
+            Precio = l.Precio,
+            Autores = l.LibrosAutores.Select(la => new
+            {
+                NombreAutor = la.Autor.Nombre,
+                PaisAutor = la.Autor.Pais
+            }).ToList()
+        })
+        .ToListAsync();
+
+    return Results.Ok(librosConAutores);
+});
+
+// 3. Listado de todos los autores incluyendo los datos de cada unos de los libros que han escrito.
+app.MapGet("/api/listadoAutoresConLibros", async ([FromServices] LibrosContext dbContext) =>
+{
+    var autoresConLibros = await dbContext.Autores
+        .Include(a => a.LibrosAutores)  
+        .ThenInclude(la => la.Libro)    
+        .OrderBy(a => a.Nombre)         
+        .Select(a => new
+        {
+            NombreAutor = a.Nombre,
+            Pais = a.Pais,
+            LibrosEscritos = a.LibrosAutores.Select(la => new
+            {
+                TituloLibro = la.Libro.Titulo,
+                NumeroPaginas = la.Libro.NumPaginas,
+                FechaPublicacion = la.Libro.FechaPublicacion,
+                Edicion = la.Libro.Edicion,
+                Precio = la.Libro.Precio,
+                Editorial = la.Libro.Editorial.Nombre
+                
+            }).ToList()
+        })
+        .ToListAsync();
+
+    return Results.Ok(autoresConLibros);
+});
+
+
+// 4. Listado que muestre cuantos libros hay de cada editorial. (Group By)
+app.MapGet("/api/cantidadLibrosPorEditorial", async ([FromServices] LibrosContext dbContext) =>
+{
+    var cantidadLibrosPorEditorial = await dbContext.Libros
+        .Include(l => l.Editorial)  
+        .GroupBy(l => l.Editorial.Nombre)  
+        .Select(g => new
+        {
+            Editorial = g.Key,
+            CantidadLibros = g.Count()
+        })
+        .ToListAsync();
+
+    return Results.Ok(cantidadLibrosPorEditorial);
+});
+
+// 5. Los dos libros más costosos y a que autor pertenecen
+app.MapGet("/api/librosConCostoMasAlto", async ([FromServices] LibrosContext dbContext) =>
+{
+    var librosConCostoMasAlto = await dbContext.Libros
+        .Include(l => l.LibrosAutores)
+        .ThenInclude(la => la.Autor)
+        .OrderByDescending(l => l.Precio)
+        .Take(2)
+        .Select(l => new
+        {
+            TituloLibro = l.Titulo,
+            Precio = l.Precio,
+            Autores = l.LibrosAutores.Select(la => la.Autor.Nombre).ToList()
+        })
+        .ToListAsync();
+
+    return Results.Ok(librosConCostoMasAlto);
+});
 
 
 app.Run();

@@ -130,3 +130,4 @@ C:\Users\jessy\Documents\IDGS903\Repositorios\BibliotecaApi\BibliotecaApi\obj\De
 C:\Users\jessy\Documents\IDGS903\Repositorios\BibliotecaApi\BibliotecaApi\obj\Debug\net8.0\BibliotecaApi.pdb
 C:\Users\jessy\Documents\IDGS903\Repositorios\BibliotecaApi\BibliotecaApi\obj\Debug\net8.0\BibliotecaApi.genruntimeconfig.cache
 C:\Users\jessy\Documents\IDGS903\Repositorios\BibliotecaApi\BibliotecaApi\obj\Debug\net8.0\ref\BibliotecaApi.dll
+C:\Users\jessy\Documents\IDGS903\Repositorios\BibliotecaApi\BibliotecaApi\obj\Debug\net8.0\BibliotecaApi.sourcelink.json
